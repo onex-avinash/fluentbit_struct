@@ -285,7 +285,7 @@ function process_dlr(tag, timestamp, record)
 end
 ```
 
-7. Edit the `fluent-bit.yaml` that is created already in the folder `~/onextel/fluent-bit/config`
+7. Edit the `fluent-bit.yml` that is created already in the folder `~/onextel/fluent-bit/config`
 
 ```yaml
 includes:
