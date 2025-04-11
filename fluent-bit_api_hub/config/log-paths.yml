@@ -1,0 +1,4 @@
+## This file is used to set the log paths for different environments. 
+env:
+  DLR_LOG_PATH: ~/onextel/fluent-bit/logs/DlrSend_kS0UZhPy_2025_4_3.log
+  DLVR_ERROR_CODE_LOG_PATH: ~/onextel/fluent-bit/logs/1013_6_4_2025_dlvr_error_code.log

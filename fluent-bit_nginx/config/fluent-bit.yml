@@ -1,0 +1,98 @@
+includes:
+  - /home/onexadmin/onextel/fluent-bit_nginx/config/log-paths.yml
+
+env:
+  FLUSH_INTERVAL: 15
+  LOG_LEVEL: info
+  PROMETHEUS_HOST: 0.0.0.0
+  PROMETHEUS_PORT: 2020
+  REFRESH_INTERVAL: 10
+  IGNORE_OLDER: 1d
+  METRICS_FLUSH_INTERVAL: 15
+
+service:
+  flush: ${FLUSH_INTERVAL}
+  log_level: ${LOG_LEVEL}
+  parsers_file: /home/onexadmin/onextel/fluent-bit_nginx/config/parsers.conf
+
+pipeline:
+  inputs:
+    - name: tail
+      path: ${NGINX_LOG_PATH}
+      tag: nginx_logs
+      path_key: server_name
+      refresh_interval: ${REFRESH_INTERVAL}
+      parser: nginx
+      ignore_older: ${IGNORE_OLDER}
+
+  filters:
+    - name: lua
+      match: nginx_logs
+      script: /home/onexadmin/onextel/fluent-bit_nginx/lua/filter_invalid_record.lua
+      call: filterinvalid_record
+
+    - name: lua
+      match: nginx_logs
+      script: /home/onexadmin/onextel/fluent-bit_nginx/lua/extract_key.lua
+      call: extract_key
+
+    - name: log_to_metrics
+      match: nginx_logs
+      tag: nginx_metrics
+      metric_mode: counter
+      metric_name: requests_total
+      metric_description: Total number of HTTP requests
+      label_field:
+        - code
+        - method
+        - path
+        - api_key
+      flush_interval_sec: ${METRICS_FLUSH_INTERVAL}
+      flush_interval_nsec: 0
+
+    - name: log_to_metrics
+      match: nginx_logs
+      tag: nginx_metrics
+      metric_mode: histogram
+      metric_name: request_duration_seconds
+      metric_description: Distribution of request processing times
+      value_field: request_time
+      label_field:
+        - code
+        - method
+        - path
+        - api_key
+      bucket:
+        - 0.1
+        - 0.5
+        - 1.0
+        - 3.0
+        - 5.0
+      flush_interval_sec: 15
+
+    - name: log_to_metrics
+      match: nginx_logs
+      tag: nginx_metrics
+      metric_mode: histogram
+      metric_name: upstream_duration_seconds
+      metric_description: Distribution of upstream response times
+      value_field: upstream_response_time
+      label_field:
+        - code
+        - method
+        - path
+        - api_key
+      bucket:
+        - 0.1
+        - 0.5
+        - 1.0
+        - 3.0
+        - 5.0
+      flush_interval_sec: 15
+
+  outputs:
+    - name: prometheus_exporter
+      match: "*_metrics"
+      host: ${PROMETHEUS_HOST}
+      port: ${PROMETHEUS_PORT}
+    
