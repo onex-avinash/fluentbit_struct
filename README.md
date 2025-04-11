@@ -57,7 +57,7 @@ sudo systemctl status fluent-bit.service
 /opt/fluent-bit/bin/fluent-bit -c ~/onextel/fluent-bit/config/fluent-bit.yml
 ```
 
-4. Create `log-paths.yml` file in the folder `~/onextel/fluent-bit/config` :
+7. Create `log-paths.yml` file in the folder `~/onextel/fluent-bit/config` :
 
 ```yaml
 ## This file is used to set the log paths for different environments. 
@@ -67,7 +67,7 @@ env:
   DLVR_ERROR_CODE_LOG_PATH: /home/onexadmin/onextel/fluent-bit/logs/1013_6_4_2025_dlvr_error_code.log
 ```
 
-5. Create `parsers.conf` file in the folder `~/onextel/fluent-bit/config` :
+8. Create `parsers.conf` file in the folder `~/onextel/fluent-bit/config` :
 
 ```conf
 [PARSER]
@@ -91,7 +91,7 @@ env:
     Time_Format %Y-%m-%d %H:%M:%S
 ```
 
-6. Add the `lua` scripts in the folder `~/onextel/fluent-bit/lua` :
+9. Add the `lua` scripts in the folder `~/onextel/fluent-bit/lua` :
 
 - `extract_dlvr_error_code` :
 ```lua
@@ -285,7 +285,7 @@ function process_dlr(tag, timestamp, record)
 end
 ```
 
-7. Edit the `fluent-bit.yml` that is created already in the folder `~/onextel/fluent-bit/config`
+10. Edit the `fluent-bit.yml` that is created already in the folder `~/onextel/fluent-bit/config`
 
 ```yaml
 includes:
