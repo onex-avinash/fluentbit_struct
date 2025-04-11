@@ -10,7 +10,7 @@ sudo apt update
 sudo apt install fluent-bit
 ```
 
-2. Create the `fluent-bit.yaml` in the folder `~/onextel/fluent-bit/config` :
+2. Create the `fluent-bit.yml` in the folder `~/onextel/fluent-bit/config` :
 
 ```yaml
 service:
