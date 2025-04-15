@@ -1,0 +1,3 @@
+## This file is used to set the log paths for different environments. 
+env:
+  DLVR_ERROR_CODE_LOG_PATH: ~/onextel/fluent-bit_hub/logs/*_dlvr_error_code.log

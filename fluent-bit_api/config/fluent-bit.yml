@@ -1,5 +1,5 @@
 includes:
-  - /home/onexadmin/onextel/fluent-bit_api_hub/config/log-paths.yml
+  - /home/onexadmin/onextel/fluent-bit_api/config/log-paths.yml
 
 env:
   FLUSH_INTERVAL: 15
@@ -13,7 +13,7 @@ env:
 service:
   flush: ${FLUSH_INTERVAL}
   log_level: ${LOG_LEVEL}
-  parsers_file: /home/onexadmin/onextel/fluent-bit_api_hub/config/parsers.conf
+  parsers_file: /home/onexadmin/onextel/fluent-bit_api/config/parsers.conf
 
 pipeline:
   inputs:
@@ -24,23 +24,11 @@ pipeline:
       refresh_interval: ${REFRESH_INTERVAL}
       ignore_older: ${IGNORE_OLDER}
 
-    - name: tail
-      path: ${DLVR_ERROR_CODE_LOG_PATH}
-      tag: dlvr_error_code_logs
-      refresh_interval: ${REFRESH_INTERVAL}
-      parser: dlvr_error
-      ignore_older: ${IGNORE_OLDER}
-
   filters:
     - name: lua
       match: dlr_logs
-      script: /home/onexadmin/onextel/fluent-bit_api_hub/lua/process_dlr.lua
+      script: /home/onexadmin/onextel/fluent-bit_api/lua/process_dlr.lua
       call: process_dlr
-
-    - name: lua
-      match: dlvr_error_code_logs
-      script: /home/onexadmin/onextel/fluent-bit_api_hub/lua/extract_dlvr_error_code.lua
-      call: extract_dlvr_error_code
 
     - name: log_to_metrics
       match: dlr_logs
@@ -71,17 +59,6 @@ pipeline:
         - 1.0
         - 3.0
         - 5.0
-      flush_interval_sec: 15
-
-    - name: log_to_metrics
-      match: dlvr_error_code_logs
-      tag: dlvr_error_code_metrics
-      metric_mode: counter
-      metric_name: total_dlvr_error_code
-      metric_description: Total number of DLR error codes
-      label_field:
-        - porter_id
-        - code
       flush_interval_sec: 15
 
   outputs:

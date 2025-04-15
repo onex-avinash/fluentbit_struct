@@ -1,4 +1,3 @@
 ## This file is used to set the log paths for different environments. 
 env:
   DLR_LOG_PATH: ~/onextel/fluent-bit_api_hub/logs/DlrSend_*.log
-  DLVR_ERROR_CODE_LOG_PATH: ~/onextel/fluent-bit_api_hub/logs/*_dlvr_error_code.log

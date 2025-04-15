@@ -1,6 +1,6 @@
 # MultiBox setup of Fluent Bit
 
-### NGINX - **172.16.101.64** 
+### NGINX - **172.16.101.80** 
 
 >[!IMPORTANT]
 >**Docker and Docker compose is not installed in it.** 
@@ -345,7 +345,7 @@ sudo systemctl enable fluent-bit.service
 sudo systemctl status fluent-bit.service
 ```
 
-### API & HUB - **172.16.101.80** 
+### API & HUB - **172.16.101.64** 
 
 #### Installation steps:
 1. Install Fluent-bit: 
