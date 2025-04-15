@@ -1,0 +1,4 @@
+env:
+  NGINX_LOG_PATH: ~/onextel/fluent-bit_single_box/logs/sbiuatapi.onex-aura.com.log
+  DLR_LOG_PATH: ~/onextel/fluent-bit_single_box/logs/DlrSend_*.log
+  DLVR_ERROR_CODE_LOG_PATH: ~/onextel/fluent-bit_single_box/logs/*_dlvr_error_code.log

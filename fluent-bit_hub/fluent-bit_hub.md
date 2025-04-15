@@ -175,6 +175,13 @@ WantedBy=multi-user.target
 EOF
 ```
 
+>[!IMPORTANT]
+>The User and Group might give error in the Virtual Machine or Server sometime due to restricted access to user only. 
+>Try using the user of the VM (here: `onexadmin`) 
+>```bash
+User=onexadmin
+Group=onexadmin
+
 - Create the user:
 ```bash
 sudo useradd --system --no-create-home --shell /sbin/nologin fluent

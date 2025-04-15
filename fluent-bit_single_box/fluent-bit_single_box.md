@@ -1,4 +1,4 @@
-### NGINX - **172.16.101.80** 
+### SINGLE VM - **172.16.101.64** 
 
 >[!IMPORTANT]
 >**Docker and Docker compose is not installed in it.** 
@@ -17,7 +17,7 @@ sudo apt update
 sudo apt install fluent-bit
 ```
 
-2. Create the `fluent-bit.yml` in the folder `~/onextel/fluent-bit_nginx/config` :
+2. Create the `fluent-bit.yml` in the folder `~/onextel/fluent-bit_single_box/config` :
 
 ```yaml
 service:
@@ -45,19 +45,21 @@ pipeline:
 3. Check if the config file is working correctly by executing: 
 
 ```bash
-/opt/fluent-bit/bin/fluent-bit -c ~/onextel/fluent-bit_nginx/config/fluent-bit.yml
+/opt/fluent-bit/bin/fluent-bit -c ~/onextel/fluent-bit_single_box/config/fluent-bit.yml
 ```
 
 4. `Ctrl+C` to exit the running service.
 
-5. Create `log-paths.yml` file in the folder `~/onextel/fluent-bit_nginx/config` :
+5. Create `log-paths.yml` file in the folder `~/onextel/fluent-bit_single_box/config` :
 
 ```yaml 
 env:
-  NGINX_LOG_PATH: ~/onextel/fluent-bit_nginx/logs/sbiuatapi.onex-aura.com.log
+  NGINX_LOG_PATH: ~/onextel/fluent-bit_single_box/logs/sbiuatapi.onex-aura.com.log
+  DLR_LOG_PATH: ~/onextel/fluent-bit_single_box/logs/DlrSend_*.log
+  DLVR_ERROR_CODE_LOG_PATH: ~/onextel/fluent-bit_single_box/logs/*_dlvr_error_code.log
 ```
 
-6. Create `parsers.conf` file in the folder `~/onextel/fluent-bit_nginx/config` :
+6. Create `parsers.conf` file in the folder `~/onextel/fluent-bit_single_box/config` :
 
 ```conf
 [PARSER]
@@ -66,9 +68,22 @@ env:
     Regex ^(?<remote_addr>[^ ]*) - (?<remote_user>[^ ]*) \[(?<time>[^\]]*)\] "(?<method>\S+) (?:https?://[^/]+)?(?<path>/[^ \?]*?)/?(?:\?(?<params>[^\"]*?))? HTTP/[0-9.]*" (?<code>[^ ]*) (?<body_bytes_sent>[^ ]*) "(?<referer>[^\"]*)" "(?<agent>[^\"]*)" (?<request_time>[0-9.]*) (?<upstream_response_time>[0-9.]*) (?<pipe>[p\.])$
     Time_Key time
     Time_Format %d/%b/%Y:%H:%M:%S %z
+
+[PARSER]
+    Name        json
+    Format      json
+    Time_Key    time
+    Time_Format %Y-%m-%d %H:%M:%S
+
+[PARSER]
+    Name         dlvr_error
+    Format       regex
+    Regex        ^(?<time>\d{2}:\d{2}:\d{2}),(?<code>\d{3}),(?<porter_id>\d{4})$
+    Time_Key     timestamp
+    Time_Format  %d/%b/%Y:%H:%M:%S %z
 ```
 
-9. Add the `lua` scripts in the folder `~/onextel/fluent-bit_nginx/lua` :
+9. Add the `lua` scripts in the folder `~/onextel/fluent-bit_single_box/lua` :
 
 - `extract_key.lua` :
 ```lua
@@ -192,11 +207,85 @@ function filterinvalid_record(tag, timestamp, record)
 end
 ```
 
-10. Edit the `fluent-bit.yml` that is created already in the folder `~/onextel/fluent-bit_nginx/config`
+
+- `process_dlr.lua` : 
+```lua
+function process_dlr(tag, timestamp, record)
+  -- print("[DEBUG] process_dlr called with tag: " .. tostring(tag))
+  -- print("[DEBUG] Available fields:")
+  -- for k, v in pairs(record) do
+  --    print("  " .. tostring(k) .. ": " .. tostring(v))
+  -- end
+
+  -- Calculate response time in milliseconds
+  if record.submit_ts and record.acked_ts then
+      record.response_time = (record.acked_ts - record.submit_ts) / 1000.0  -- Convert to seconds
+    --  print("[DEBUG] Calculated response time: " .. tostring(record.response_time) .. " seconds")
+    --  print("[DEBUG] Using acked_ts: " .. tostring(record.acked_ts))
+    --  print("[DEBUG] Using submit_ts: " .. tostring(record.submit_ts))
+  else
+      record.response_time = 0
+      -- print("[DEBUG] Could not calculate response time - missing timestamps")
+      -- print("[DEBUG] submit_ts: " .. tostring(record.submit_ts))
+      -- print("[DEBUG] acked_ts: " .. tostring(record.acked_ts))
+  end
+  
+  -- Ensure all required fields exist
+  record.api_key = record.api_key or "unknown"
+  record.http_resp = record.http_resp or 0
+  
+  -- Extract base URL without query parameters
+  if record.url then
+      record.url = string.match(record.url, "([^?]+)") or record.url
+  else
+      record.url = "unknown"
+  end
+  
+  -- print("[DEBUG] Processed record - response_time: " .. tostring(record.response_time))
+  return 2, timestamp, record
+end
+```
+
+
+- `extract_dlvr_error_code.lua` :
+```lua
+function extract_dlvr_error_code(tag, timestamp, record)
+    -- Define the fields to extract based on the parser
+    local required_fields = {
+        time = "time",
+        code = "code",
+        porter_id = "porter_id"
+    }
+
+    -- Validate and ensure all required fields are present in the record
+    for field, source in pairs(required_fields) do
+        if not record[source] then
+            print(string.format("[error] Missing field '%s' in record", source))
+            return -1, 0, 0
+        end
+    end
+
+    -- Assign the required fields directly to the record
+    record.time = record.time
+    record.code = record.code
+    record.porter_id = record.porter_id
+
+    -- Debugging: Print the updated record
+    -- print(string.format("[info] Updated Record: time=%s, code=%s, porter_id=%s",
+    --     record.time, record.code, record.porter_id))
+
+    -- Return the updated record
+    return 2, timestamp, record
+end
+```
+
+
+
+10. Edit the `fluent-bit.yml` that is created already in the folder `~/onextel/fluent-bit_single_box/config`
 
 ```yaml
 includes:
-  - /home/onexadmin/onextel/fluent-bit_nginx/config/log-paths.yml
+  - /home/onexadmin/onextel/fluent-bit_single_box/config/log-paths.yml
 
 env:
   FLUSH_INTERVAL: 15
@@ -210,7 +299,7 @@ env:
 service:
   flush: ${FLUSH_INTERVAL}
   log_level: ${LOG_LEVEL}
-  parsers_file: /home/onexadmin/onextel/fluent-bit_nginx/config/parsers.conf
+  parsers_file: /home/onexadmin/onextel/fluent-bit_single_box/config/parsers.conf
 
 pipeline:
   inputs:
@@ -222,16 +311,40 @@ pipeline:
       parser: nginx
       ignore_older: ${IGNORE_OLDER}
 
+    - name: tail
+      path: ${DLR_LOG_PATH}
+      tag: dlr_logs
+      parser: json
+      refresh_interval: ${REFRESH_INTERVAL}
+      ignore_older: ${IGNORE_OLDER}
+
+    - name: tail
+      path: ${DLVR_ERROR_CODE_LOG_PATH}
+      tag: dlvr_error_code_logs
+      refresh_interval: ${REFRESH_INTERVAL}
+      parser: dlvr_error
+      ignore_older: ${IGNORE_OLDER}
+
   filters:
     - name: lua
       match: nginx_logs
-      script: /home/onexadmin/onextel/fluent-bit_nginx/lua/filter_invalid_record.lua
+      script: /home/onexadmin/onextel/fluent-bit_single_box/lua/filter_invalid_record.lua
       call: filterinvalid_record
 
     - name: lua
       match: nginx_logs
-      script: /home/onexadmin/onextel/fluent-bit_nginx/lua/extract_key.lua
+      script: /home/onexadmin/onextel/fluent-bit_single_box/lua/extract_key.lua
       call: extract_key
+
+    - name: lua
+      match: dlr_logs
+      script: /home/onexadmin/onextel/fluent-bit_single_box/lua/process_dlr.lua
+      call: process_dlr
+
+    - name: lua
+      match: dlvr_error_code_logs
+      script: /home/onexadmin/onextel/fluent-bit_single_box/lua/extract_dlvr_error_code.lua
+      call: extract_dlvr_error_code
 
     - name: log_to_metrics
       match: nginx_logs
@@ -287,6 +400,48 @@ pipeline:
         - 5.0
       flush_interval_sec: 15
 
+    - name: log_to_metrics
+      match: dlr_logs
+      tag: dlr_metrics
+      metric_mode: counter
+      metric_name: total_dlr_send
+      metric_description: Total number of DLR sends
+      label_field:
+        - api_key
+        - http_resp
+        - url
+      flush_interval_sec: 15
+
+    - name: log_to_metrics
+      match: dlr_logs
+      tag: dlr_metrics
+      metric_mode: histogram
+      metric_name: dlr_response_time_seconds
+      metric_description: Distribution of DLR response times
+      value_field: response_time
+      label_field:
+        - api_key
+        - http_resp
+        - url
+      bucket:
+        - 0.1
+        - 0.5
+        - 1.0
+        - 3.0
+        - 5.0
+      flush_interval_sec: 15
+
+    - name: log_to_metrics
+      match: dlvr_error_code_logs
+      tag: dlvr_error_code_metrics
+      metric_mode: counter
+      metric_name: total_dlvr_error_code
+      metric_description: Total number of DLR error codes
+      label_field:
+        - porter_id
+        - code
+      flush_interval_sec: 15
+
   outputs:
     - name: prometheus_exporter
       match: "*_metrics"
@@ -309,7 +464,7 @@ Description=Fluent Bit Service
 After=network.target
 
 [Service]
-ExecStart=/opt/fluent-bit/bin/fluent-bit -c /home/onexadmin/onextel/fluent-bit_nginx/config/fluent-bit.yml
+ExecStart=/opt/fluent-bit/bin/fluent-bit -c /home/onexadmin/onextel/fluent-bit_single_box/config/fluent-bit.yml
 Restart=on-failure
 StandardOutput=journal
 StandardError=journal
