@@ -480,8 +480,9 @@ EOF
 >The User and Group might give error in the Virtual Machine or Server sometime due to restricted access to user only. 
 >Try using the user of the VM (here: `onexadmin`) 
 >```bash
-User=onexadmin
-Group=onexadmin
+> User=onexadmin
+> Group=onexadmin
+> ```
 
 - Create the user:
 ```bash
